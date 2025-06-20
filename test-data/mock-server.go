@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 )
 
 func main() {
@@ -21,13 +20,13 @@ func main() {
 			return
 		}
 
-		// Check for Authorization header (accept any token for testing)
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		// Check for X-API-Key header (accept any token for testing)
+		apiKey := r.Header.Get("X-API-Key")
+		if apiKey == "" {
 			w.WriteHeader(http.StatusUnauthorized)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"Status":  "Error",
-				"Message": "Missing or invalid Authorization header",
+				"Message": "Missing or invalid X-API-Key header",
 				"Meta":    nil,
 			})
 			return

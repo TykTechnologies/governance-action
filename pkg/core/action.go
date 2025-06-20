@@ -58,7 +58,8 @@ func RunAction(logger *zap.Logger) error {
 		}
 
 		// Analyze the OAS file
-		results, err = client.AnalyzeOAS(context.Background(), oasContent, config.RuleID)
+		filename := filepath.Base(config.APIPath)
+		results, err = client.AnalyzeOAS(context.Background(), oasContent, config.RuleID, filename)
 		if err != nil {
 			logger.Error("Failed to analyze OAS", zap.Error(err))
 			return fmt.Errorf("failed to analyze OAS: %w", err)

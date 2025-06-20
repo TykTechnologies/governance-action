@@ -68,17 +68,18 @@ type RuleReference struct {
 }
 
 // AnalyzeOAS analyzes an OpenAPI specification against a specific rule
-func (c *GovernanceClient) AnalyzeOAS(ctx context.Context, oasContent, ruleID string) ([]LintResult, error) {
-	c.logger.Info("Starting OAS analysis", zap.String("rule_id", ruleID))
+func (c *GovernanceClient) AnalyzeOAS(ctx context.Context, oasContent, ruleID, filename string) ([]LintResult, error) {
+	c.logger.Info("Starting OAS analysis", zap.String("rule_id", ruleID), zap.String("filename", filename))
 
-	// First, we need to upload the OAS content to the governance service
-	// Since the current API expects APIs to be registered, we'll need to create a temporary API
-	// or use a different approach. For now, let's assume there's an endpoint for direct analysis
-
-	// Create the analysis request
+	// Create the analysis request in the correct format expected by the governance service
 	request := map[string]interface{}{
-		"oas_content": oasContent,
-		"rule_id":     ruleID,
+		"ruleSetSelector": map[string]interface{}{
+			"id": ruleID,
+		},
+		"apiContent": map[string]interface{}{
+			"name":    filename,
+			"content": oasContent,
+		},
 	}
 
 	// Make the API call
@@ -111,7 +112,7 @@ func (c *GovernanceClient) makeAnalysisRequest(ctx context.Context, request inte
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.authToken))
+	req.Header.Set("X-API-Key", fmt.Sprintf("%s", c.authToken))
 
 	// Make the request
 	c.logger.Debug("Making request to governance service", zap.String("url", url))
@@ -162,5 +163,5 @@ func (c *GovernanceClient) AnalyzeOASWithUpload(ctx context.Context, oasContent,
 	// 2. Use the existing /rulesets/evaluate endpoint with the temporary API ID
 	// 3. Clean up the temporary API after analysis
 
-	return c.AnalyzeOAS(ctx, oasContent, ruleID)
+	return c.AnalyzeOAS(ctx, oasContent, ruleID, "")
 }
