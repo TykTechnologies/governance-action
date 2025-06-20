@@ -37,21 +37,32 @@ func RunAction(logger *zap.Logger) error {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
 
-	// Create governance client
-	client := integrations.NewGovernanceClient(config.GovernanceService, config.GovernanceAuth, logger)
+	var results []integrations.LintResult
 
-	// Read and validate the OAS file
-	oasContent, err := readOASFile(config.APIPath)
-	if err != nil {
-		logger.Error("Failed to read OAS file", zap.Error(err), zap.String("path", config.APIPath))
-		return fmt.Errorf("failed to read OAS file: %w", err)
-	}
+	// Check if mocked mode is enabled
+	if config.Mocked != "" {
+		logger.Info("Running in mocked mode", zap.String("mocked_type", config.Mocked))
 
-	// Analyze the OAS file
-	results, err := client.AnalyzeOAS(context.Background(), oasContent, config.RuleID)
-	if err != nil {
-		logger.Error("Failed to analyze OAS", zap.Error(err))
-		return fmt.Errorf("failed to analyze OAS: %w", err)
+		// Generate mock results based on the mocked type
+		results = generateMockResults(config.Mocked, config.RuleID)
+		logger.Info("Generated mock results", zap.Int("result_count", len(results)), zap.String("mocked_type", config.Mocked))
+	} else {
+		// Normal mode - create governance client and analyze
+		client := integrations.NewGovernanceClient(config.GovernanceService, config.GovernanceAuth, logger)
+
+		// Read and validate the OAS file
+		oasContent, err := readOASFile(config.APIPath)
+		if err != nil {
+			logger.Error("Failed to read OAS file", zap.Error(err), zap.String("path", config.APIPath))
+			return fmt.Errorf("failed to read OAS file: %w", err)
+		}
+
+		// Analyze the OAS file
+		results, err = client.AnalyzeOAS(context.Background(), oasContent, config.RuleID)
+		if err != nil {
+			logger.Error("Failed to analyze OAS", zap.Error(err))
+			return fmt.Errorf("failed to analyze OAS: %w", err)
+		}
 	}
 
 	// Process and report results
@@ -70,6 +81,7 @@ type Configuration struct {
 	GovernanceAuth    string
 	RuleID            string
 	APIPath           string
+	Mocked            string
 }
 
 // getConfiguration retrieves configuration from environment variables
@@ -79,6 +91,7 @@ func getConfiguration() (*Configuration, error) {
 		GovernanceAuth:    os.Getenv("INPUT_GOVERNANCE_AUTH"),
 		RuleID:            os.Getenv("INPUT_RULE_ID"),
 		APIPath:           os.Getenv("INPUT_API_PATH"),
+		Mocked:            os.Getenv("INPUT_MOCKED"),
 	}
 
 	// Fallback to direct environment variables if INPUT_ prefixed ones are not set
@@ -93,6 +106,9 @@ func getConfiguration() (*Configuration, error) {
 	}
 	if config.APIPath == "" {
 		config.APIPath = os.Getenv("API_PATH")
+	}
+	if config.Mocked == "" {
+		config.Mocked = os.Getenv("MOCKED")
 	}
 
 	// GitLab CI specific fallbacks
@@ -114,6 +130,22 @@ func getConfiguration() (*Configuration, error) {
 
 // Validate checks if the configuration is valid
 func (c *Configuration) Validate() error {
+	// If mocked mode is enabled, validate the mocked value
+	if c.Mocked != "" {
+		if c.Mocked != "success" && c.Mocked != "fail" && c.Mocked != "warning" {
+			return fmt.Errorf("mocked must be one of: success, fail, warning")
+		}
+		// In mocked mode, governance service and auth are not required
+		if c.RuleID == "" {
+			return fmt.Errorf("rule_id is required")
+		}
+		if c.APIPath == "" {
+			return fmt.Errorf("api_path is required")
+		}
+		return nil
+	}
+
+	// Normal mode validation
 	if c.GovernanceService == "" {
 		return fmt.Errorf("governance_service is required")
 	}
@@ -146,6 +178,118 @@ func readOASFile(path string) (string, error) {
 	}
 
 	return string(content), nil
+}
+
+// generateMockResults creates predefined governance analysis results for testing
+func generateMockResults(mockedType string, ruleID string) []integrations.LintResult {
+	switch mockedType {
+	case "success":
+		// Return empty results for success
+		return []integrations.LintResult{}
+
+	case "warning":
+		// Return warning results
+		return []integrations.LintResult{
+			{
+				Code:     "mock-warning-001",
+				Path:     []string{"paths", "/test", "get", "responses"},
+				Message:  "Mock warning: Consider adding rate limiting headers",
+				Severity: 1, // Warning
+				Range: integrations.LintRange{
+					Start: integrations.LintLocation{Line: 10, Character: 5},
+					End:   integrations.LintLocation{Line: 10, Character: 15},
+				},
+				Source: "mock-source",
+				API: integrations.APIReference{
+					ID:   "mock-api-id",
+					Name: "Mock API",
+				},
+				Rule: integrations.RuleReference{
+					Name: ruleID,
+				},
+			},
+			{
+				Code:     "mock-warning-002",
+				Path:     []string{"paths", "/test", "get", "security"},
+				Message:  "Mock warning: Consider adding authentication",
+				Severity: 1, // Warning
+				Range: integrations.LintRange{
+					Start: integrations.LintLocation{Line: 8, Character: 3},
+					End:   integrations.LintLocation{Line: 8, Character: 12},
+				},
+				Source: "mock-source",
+				API: integrations.APIReference{
+					ID:   "mock-api-id",
+					Name: "Mock API",
+				},
+				Rule: integrations.RuleReference{
+					Name: ruleID,
+				},
+			},
+		}
+
+	case "fail":
+		// Return error results
+		return []integrations.LintResult{
+			{
+				Code:     "mock-error-001",
+				Path:     []string{"paths", "/test", "get", "responses"},
+				Message:  "Mock error: Missing required 401 response code",
+				Severity: 0, // Error
+				Range: integrations.LintRange{
+					Start: integrations.LintLocation{Line: 10, Character: 5},
+					End:   integrations.LintLocation{Line: 10, Character: 15},
+				},
+				Source: "mock-source",
+				API: integrations.APIReference{
+					ID:   "mock-api-id",
+					Name: "Mock API",
+				},
+				Rule: integrations.RuleReference{
+					Name: ruleID,
+				},
+			},
+			{
+				Code:     "mock-error-002",
+				Path:     []string{"paths", "/test", "get", "responses", "200"},
+				Message:  "Mock error: Missing rate limiting headers in 200 response",
+				Severity: 0, // Error
+				Range: integrations.LintRange{
+					Start: integrations.LintLocation{Line: 12, Character: 7},
+					End:   integrations.LintLocation{Line: 12, Character: 10},
+				},
+				Source: "mock-source",
+				API: integrations.APIReference{
+					ID:   "mock-api-id",
+					Name: "Mock API",
+				},
+				Rule: integrations.RuleReference{
+					Name: ruleID,
+				},
+			},
+			{
+				Code:     "mock-warning-003",
+				Path:     []string{"paths", "/test", "get", "security"},
+				Message:  "Mock warning: Consider adding authentication",
+				Severity: 1, // Warning
+				Range: integrations.LintRange{
+					Start: integrations.LintLocation{Line: 8, Character: 3},
+					End:   integrations.LintLocation{Line: 8, Character: 12},
+				},
+				Source: "mock-source",
+				API: integrations.APIReference{
+					ID:   "mock-api-id",
+					Name: "Mock API",
+				},
+				Rule: integrations.RuleReference{
+					Name: ruleID,
+				},
+			},
+		}
+
+	default:
+		return []integrations.LintResult{}
+	}
 }
 
 // processResults handles the analysis results and determines success/failure

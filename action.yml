@@ -21,6 +21,10 @@ inputs:
   api_path:
     description: 'Path to the OpenAPI (OAS) file to analyze.'
     required: true
+  mocked:
+    description: 'Mock mode for testing. Use "success", "fail", or "warning" to bypass API call and return predefined results.'
+    required: false
+    default: ''
 outputs:
   error_count:
     description: 'Number of errors found.'
@@ -37,4 +41,5 @@ outputs:
 #     governance_service: ${{ secrets.GOVERNANCE_SERVICE_URL }}
 #     governance_auth: ${{ secrets.GOVERNANCE_SERVICE_TOKEN }}
 #     rule_id: ${{ env.RULE_ID }}
-#     api_path: ./api/openapi.yaml 
+#     api_path: ./api/openapi.yaml
+#     mocked: 'success'  # Optional: Use for testing 

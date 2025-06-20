@@ -29,11 +29,14 @@ The action uses the following environment variables:
 
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `GOVERNANCE_API_URL` | Base URL of the governance service API | Yes | - |
-| `GOVERNANCE_API_TOKEN` | Authentication token for the governance API | Yes | - |
+| `GOVERNANCE_API_URL` | Base URL of the governance service API | Yes* | - |
+| `GOVERNANCE_API_TOKEN` | Authentication token for the governance API | Yes* | - |
 | `OAS_FILE_PATH` | Path to the OpenAPI Specification file | Yes | - |
 | `RULE_ID` | ID of the governance rule to evaluate against | Yes | - |
+| `MOCKED` | Mock mode for testing ("success", "fail", "warning") | No | - |
 | `VERBOSE` | Enable verbose logging (true/false) | No | false |
+
+*Not required when using `MOCKED` mode for testing.
 
 ## Setup Guides
 
@@ -50,6 +53,16 @@ For detailed GitHub Actions integration instructions, see [GitHub Actions Integr
     GOVERNANCE_API_TOKEN: ${{ secrets.GOVERNANCE_API_TOKEN }}
     OAS_FILE_PATH: ./api/openapi.yaml
     RULE_ID: ${{ secrets.GOVERNANCE_RULE_ID }}
+```
+
+**Testing with Mock Mode:**
+```yaml
+- name: Test Governance Check (Mock Mode)
+  uses: docker://ghcr.io/tyktechnologies/governance-action:latest
+  env:
+    OAS_FILE_PATH: ./api/openapi.yaml
+    RULE_ID: test-rule-id
+    MOCKED: success  # Options: success, fail, warning
 ```
 
 ### GitLab CI
@@ -69,6 +82,18 @@ governance-check:
     - /app/governance-action
 ```
 
+**Testing with Mock Mode:**
+```yaml
+governance-test:
+  image: ghcr.io/tyktechnologies/governance-action:latest
+  variables:
+    OAS_FILE_PATH: ./api/openapi.yaml
+    RULE_ID: test-rule-id
+    MOCKED: fail  # Options: success, fail, warning
+  script:
+    - /app/governance-action
+```
+
 ### Local Testing
 
 For comprehensive local testing instructions, see [Local Testing Guide](docs/local-testing.md).
@@ -80,6 +105,33 @@ docker run --rm \
   -e GOVERNANCE_API_TOKEN=your-token \
   -e OAS_FILE_PATH=/workspace/openapi.yaml \
   -e RULE_ID=6853d42c7493327ea805be8a \
+  -v $(pwd):/workspace \
+  ghcr.io/tyktechnologies/governance-action:latest
+```
+
+**Testing with Mock Mode:**
+```bash
+# Test success scenario
+docker run --rm \
+  -e OAS_FILE_PATH=/workspace/openapi.yaml \
+  -e RULE_ID=test-rule-id \
+  -e MOCKED=success \
+  -v $(pwd):/workspace \
+  ghcr.io/tyktechnologies/governance-action:latest
+
+# Test failure scenario
+docker run --rm \
+  -e OAS_FILE_PATH=/workspace/openapi.yaml \
+  -e RULE_ID=test-rule-id \
+  -e MOCKED=fail \
+  -v $(pwd):/workspace \
+  ghcr.io/tyktechnologies/governance-action:latest
+
+# Test warning scenario
+docker run --rm \
+  -e OAS_FILE_PATH=/workspace/openapi.yaml \
+  -e RULE_ID=test-rule-id \
+  -e MOCKED=warning \
   -v $(pwd):/workspace \
   ghcr.io/tyktechnologies/governance-action:latest
 ```
