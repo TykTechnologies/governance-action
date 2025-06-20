@@ -10,6 +10,7 @@ The Governance Action is fully compatible with GitHub Actions and can be used to
 - GitHub-specific context extraction
 - Output variable generation for downstream steps
 - Integration with GitHub's security features
+- **Mock mode for testing and development**
 
 ## Quick Start
 
@@ -28,13 +29,12 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Run Governance Check
-        uses: docker://ghcr.io/tyktechnologies/governance-action:latest
-        env:
-          GOVERNANCE_API_URL: ${{ secrets.GOVERNANCE_API_URL }}
-          GOVERNANCE_API_TOKEN: ${{ secrets.GOVERNANCE_API_TOKEN }}
-          OAS_FILE_PATH: ./api/openapi.yaml
-          RULE_ID: ${{ secrets.GOVERNANCE_RULE_ID }}
-          VERBOSE: true
+        uses: tyktechnologies/governance-action@latest
+        with:
+          governance_service: ${{ secrets.GOVERNANCE_SERVICE_URL }}
+          governance_auth: ${{ secrets.GOVERNANCE_SERVICE_TOKEN }}
+          rule_id: ${{ secrets.GOVERNANCE_RULE_ID }}
+          api_path: ./api/openapi.yaml
 ```
 
 ### 2. Configure Repository Secrets
@@ -43,9 +43,84 @@ In your GitHub repository:
 
 1. Go to **Settings** → **Secrets and variables** → **Actions**
 2. Add the following repository secrets:
-   - `GOVERNANCE_API_URL`: Your governance service URL
-   - `GOVERNANCE_API_TOKEN`: Your governance service authentication token
+   - `GOVERNANCE_SERVICE_URL`: Your governance service URL
+   - `GOVERNANCE_SERVICE_TOKEN`: Your governance service authentication token
    - `GOVERNANCE_RULE_ID`: The rule ID to evaluate against
+
+## Mock Mode for Testing
+
+The action supports a **mock mode** that bypasses the governance service API call and returns predefined results. This is perfect for:
+
+- **Development and testing** without a real governance service
+- **CI/CD pipeline testing** to verify different scenarios
+- **Documentation examples** and demonstrations
+
+### Mock Mode Usage
+
+```yaml
+- name: Test Governance Check (Mock Mode)
+  uses: tyktechnologies/governance-action@latest
+  with:
+    rule_id: test-rule-id
+    api_path: ./api/openapi.yaml
+    mocked: success  # Options: success, fail, warning
+```
+
+### Available Mock Scenarios
+
+| Mock Value | Description | Exit Code | Use Case |
+|------------|-------------|-----------|----------|
+| `success` | No governance issues found | 0 | Test successful scenarios |
+| `warning` | 2 warnings, no errors | 0 | Test warning-only scenarios |
+| `fail` | 2 errors + 1 warning | 1 | Test failure scenarios |
+
+### Complete Testing Workflow
+
+```yaml
+name: Governance Testing
+on: [push, pull_request]
+
+jobs:
+  test-governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Test Success Scenario
+        uses: tyktechnologies/governance-action@latest
+        with:
+          rule_id: test-rule-id
+          api_path: ./api/openapi.yaml
+          mocked: success
+          
+      - name: Test Warning Scenario
+        uses: tyktechnologies/governance-action@latest
+        with:
+          rule_id: test-rule-id
+          api_path: ./api/openapi.yaml
+          mocked: warning
+          
+      - name: Test Fail Scenario
+        uses: tyktechnologies/governance-action@latest
+        continue-on-error: true  # Don't fail the workflow for this test
+        with:
+          rule_id: test-rule-id
+          api_path: ./api/openapi.yaml
+          mocked: fail
+```
+
+### Conditional Mock Usage
+
+```yaml
+- name: Run Governance Check
+  uses: tyktechnologies/governance-action@latest
+  with:
+    governance_service: ${{ github.event_name == 'push' && secrets.GOVERNANCE_SERVICE_URL || '' }}
+    governance_auth: ${{ github.event_name == 'push' && secrets.GOVERNANCE_SERVICE_TOKEN || '' }}
+    rule_id: ${{ secrets.GOVERNANCE_RULE_ID }}
+    api_path: ./api/openapi.yaml
+    mocked: ${{ github.event_name == 'pull_request' && 'warning' || '' }}
+```
 
 ## Advanced Configuration
 
@@ -73,13 +148,12 @@ jobs:
       
       - name: Run Governance Check
         id: governance
-        uses: docker://ghcr.io/tyktechnologies/governance-action:latest
-        env:
-          GOVERNANCE_API_URL: ${{ secrets.GOVERNANCE_API_URL }}
-          GOVERNANCE_API_TOKEN: ${{ secrets.GOVERNANCE_API_TOKEN }}
-          OAS_FILE_PATH: ./api/openapi.yaml
-          RULE_ID: ${{ secrets.GOVERNANCE_RULE_ID }}
-          VERBOSE: true
+        uses: tyktechnologies/governance-action@latest
+        with:
+          governance_service: ${{ secrets.GOVERNANCE_SERVICE_URL }}
+          governance_auth: ${{ secrets.GOVERNANCE_SERVICE_TOKEN }}
+          rule_id: ${{ secrets.GOVERNANCE_RULE_ID }}
+          api_path: ./api/openapi.yaml
 
   deploy:
     runs-on: ubuntu-latest
@@ -111,12 +185,12 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Run Governance Check
-        uses: docker://ghcr.io/tyktechnologies/governance-action:latest
-        env:
-          GOVERNANCE_API_URL: ${{ secrets.GOVERNANCE_API_URL }}
-          GOVERNANCE_API_TOKEN: ${{ secrets.GOVERNANCE_API_TOKEN }}
-          OAS_FILE_PATH: ./api/openapi.yaml
-          RULE_ID: ${{ secrets.GOVERNANCE_RULE_ID }}
+        uses: tyktechnologies/governance-action@latest
+        with:
+          governance_service: ${{ secrets.GOVERNANCE_SERVICE_URL }}
+          governance_auth: ${{ secrets.GOVERNANCE_SERVICE_TOKEN }}
+          rule_id: ${{ secrets.GOVERNANCE_RULE_ID }}
+          api_path: ./api/openapi.yaml
 ```
 
 ### Multiple API Files
@@ -132,12 +206,12 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Check API Governance
-        uses: docker://ghcr.io/tyktechnologies/governance-action:latest
-        env:
-          GOVERNANCE_API_URL: ${{ secrets.GOVERNANCE_API_URL }}
-          GOVERNANCE_API_TOKEN: ${{ secrets.GOVERNANCE_API_TOKEN }}
-          OAS_FILE_PATH: ./api/openapi.yaml
-          RULE_ID: ${{ secrets.API_GOVERNANCE_RULE_ID }}
+        uses: tyktechnologies/governance-action@latest
+        with:
+          governance_service: ${{ secrets.GOVERNANCE_SERVICE_URL }}
+          governance_auth: ${{ secrets.GOVERNANCE_SERVICE_TOKEN }}
+          rule_id: ${{ secrets.API_GOVERNANCE_RULE_ID }}
+          api_path: ./api/openapi.yaml
 
   governance-docs:
     runs-on: ubuntu-latest
@@ -145,30 +219,42 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Check Documentation Governance
-        uses: docker://ghcr.io/tyktechnologies/governance-action:latest
-        env:
-          GOVERNANCE_API_URL: ${{ secrets.GOVERNANCE_API_URL }}
-          GOVERNANCE_API_TOKEN: ${{ secrets.GOVERNANCE_API_TOKEN }}
-          OAS_FILE_PATH: ./docs/api.yaml
-          RULE_ID: ${{ secrets.DOCS_GOVERNANCE_RULE_ID }}
+        uses: tyktechnologies/governance-action@latest
+        with:
+          governance_service: ${{ secrets.GOVERNANCE_SERVICE_URL }}
+          governance_auth: ${{ secrets.GOVERNANCE_SERVICE_TOKEN }}
+          rule_id: ${{ secrets.DOCS_GOVERNANCE_RULE_ID }}
+          api_path: ./docs/api.yaml
 ```
 
-## Environment Variables
+## Input Parameters
 
-### Required Variables
+### Required Parameters
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `GOVERNANCE_API_URL` | Base URL of the governance service | `https://governance.example.com` |
-| `GOVERNANCE_API_TOKEN` | Authentication token for the governance API | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
-| `OAS_FILE_PATH` | Path to the OpenAPI Specification file | `./api/openapi.yaml` |
-| `RULE_ID` | ID of the governance rule to evaluate against | `6853d42c7493327ea805be8a` |
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `governance_service` | Base URL of the governance service | `https://governance.example.com` |
+| `governance_auth` | Authentication token for the governance API | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
+| `rule_id` | ID of the governance rule to evaluate against | `6853d42c7493327ea805be8a` |
+| `api_path` | Path to the OpenAPI Specification file | `./api/openapi.yaml` |
 
-### Optional Variables
+### Optional Parameters
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `VERBOSE` | Enable verbose logging | `false` |
+| Parameter | Description | Default | Notes |
+|-----------|-------------|---------|-------|
+| `mocked` | Mock mode for testing (`success`, `fail`, `warning`) | - | When set, bypasses API call |
+
+### Environment Variable Fallbacks
+
+The action also supports environment variables:
+
+| Environment Variable | Maps to Input Parameter |
+|---------------------|-------------------------|
+| `GOVERNANCE_SERVICE` | `governance_service` |
+| `GOVERNANCE_AUTH` | `governance_auth` |
+| `RULE_ID` | `rule_id` |
+| `API_PATH` | `api_path` |
+| `MOCKED` | `mocked` |
 
 ### GitHub-Specific Variables
 
@@ -192,18 +278,36 @@ The action provides the following outputs that can be used in subsequent steps:
 ```yaml
 - name: Run Governance Check
   id: governance
-  uses: docker://ghcr.io/tyktechnologies/governance-action:latest
-  env:
-    GOVERNANCE_API_URL: ${{ secrets.GOVERNANCE_API_URL }}
-    GOVERNANCE_API_TOKEN: ${{ secrets.GOVERNANCE_API_TOKEN }}
-    OAS_FILE_PATH: ./api/openapi.yaml
-    RULE_ID: ${{ secrets.GOVERNANCE_RULE_ID }}
+  uses: tyktechnologies/governance-action@latest
+  with:
+    governance_service: ${{ secrets.GOVERNANCE_SERVICE_URL }}
+    governance_auth: ${{ secrets.GOVERNANCE_SERVICE_TOKEN }}
+    rule_id: ${{ secrets.GOVERNANCE_RULE_ID }}
+    api_path: ./api/openapi.yaml
 
 - name: Check Results
   run: |
     echo "Found ${{ steps.governance.outputs.error_count }} errors"
     echo "Found ${{ steps.governance.outputs.warning_count }} warnings"
     echo "Total issues: ${{ steps.governance.outputs.total_issues }}"
+```
+
+### Using Outputs with Mock Mode
+
+```yaml
+- name: Test Governance Check
+  id: governance-test
+  uses: tyktechnologies/governance-action@latest
+  with:
+    rule_id: test-rule-id
+    api_path: ./api/openapi.yaml
+    mocked: fail
+
+- name: Check Mock Results
+  run: |
+    echo "Mock test found ${{ steps.governance-test.outputs.error_count }} errors"
+    echo "Mock test found ${{ steps.governance-test.outputs.warning_count }} warnings"
+    echo "Mock test total issues: ${{ steps.governance-test.outputs.total_issues }}"
 ```
 
 ### Available Outputs
@@ -221,10 +325,10 @@ The action provides the following outputs that can be used in subsequent steps:
 Always use GitHub secrets for sensitive information:
 
 ```yaml
-env:
-  GOVERNANCE_API_URL: ${{ secrets.GOVERNANCE_API_URL }}
-  GOVERNANCE_API_TOKEN: ${{ secrets.GOVERNANCE_API_TOKEN }}
-  RULE_ID: ${{ secrets.GOVERNANCE_RULE_ID }}
+with:
+  governance_service: ${{ secrets.GOVERNANCE_SERVICE_URL }}
+  governance_auth: ${{ secrets.GOVERNANCE_SERVICE_TOKEN }}
+  rule_id: ${{ secrets.GOVERNANCE_RULE_ID }}
 ```
 
 ### Environment-Specific Secrets
@@ -237,10 +341,12 @@ jobs:
     environment: production
     steps:
       - name: Run Governance Check
-        uses: docker://ghcr.io/tyktechnologies/governance-action:latest
-        env:
-          GOVERNANCE_API_URL: ${{ secrets.PROD_GOVERNANCE_API_URL }}
-          GOVERNANCE_API_TOKEN: ${{ secrets.PROD_GOVERNANCE_API_TOKEN }}
+        uses: tyktechnologies/governance-action@latest
+        with:
+          governance_service: ${{ secrets.PROD_GOVERNANCE_SERVICE_URL }}
+          governance_auth: ${{ secrets.PROD_GOVERNANCE_SERVICE_TOKEN }}
+          rule_id: ${{ secrets.PROD_GOVERNANCE_RULE_ID }}
+          api_path: ./api/openapi.yaml
 ```
 
 ### Branch Protection
@@ -265,7 +371,7 @@ Configure branch protection rules to require governance checks:
 2. **Network Connectivity**
    ```bash
    # Test connectivity to governance service
-   curl -H "Authorization: Bearer $GOVERNANCE_API_TOKEN" $GOVERNANCE_API_URL/health
+   curl -H "Authorization: Bearer $GOVERNANCE_SERVICE_TOKEN" $GOVERNANCE_SERVICE_URL/health
    ```
 
 3. **File Not Found**
@@ -274,13 +380,29 @@ Configure branch protection rules to require governance checks:
    find . -name "*.yaml" -o -name "*.yml" -o -name "*.json"
    ```
 
+4. **Mock Mode Issues**
+   ```yaml
+   # Ensure mocked parameter is one of: success, fail, warning
+   with:
+     rule_id: test-rule-id
+     api_path: ./api/openapi.yaml
+     mocked: success  # Valid values only
+   ```
+
 ### Debug Mode
 
 Enable verbose logging to troubleshoot issues:
 
 ```yaml
+# For normal mode, use environment variable
 env:
   VERBOSE: true
+
+# For mocked mode, use mocked parameter
+with:
+  rule_id: test-rule-id
+  api_path: ./api/openapi.yaml
+  mocked: warning  # This will show detailed output
 ```
 
 ### Local Testing
@@ -302,6 +424,115 @@ act push
 ### Basic Workflow
 
 See the [`.github/workflows/governance.yml`](../.github/workflows/governance.yml) file in this repository for a complete example configuration.
+
+### Complete Workflow Examples
+
+#### Production Workflow
+
+```yaml
+name: Production Governance Check
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Governance Check
+        id: governance
+        uses: tyktechnologies/governance-action@latest
+        with:
+          governance_service: ${{ secrets.GOVERNANCE_SERVICE_URL }}
+          governance_auth: ${{ secrets.GOVERNANCE_SERVICE_TOKEN }}
+          rule_id: ${{ secrets.GOVERNANCE_RULE_ID }}
+          api_path: ./api/openapi.yaml
+
+      - name: Deploy on Success
+        if: steps.governance.outputs.error_count == '0'
+        run: |
+          echo "No governance errors found. Proceeding with deployment..."
+          # Your deployment commands here
+```
+
+#### Development Workflow with Testing
+
+```yaml
+name: Development Governance Testing
+on:
+  push:
+    branches: [ develop, feature/* ]
+  pull_request:
+    branches: [ develop ]
+
+jobs:
+  test-governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Test Success Scenario
+        uses: tyktechnologies/governance-action@latest
+        with:
+          rule_id: test-rule-id
+          api_path: ./api/openapi.yaml
+          mocked: success
+          
+      - name: Test Warning Scenario
+        uses: tyktechnologies/governance-action@latest
+        with:
+          rule_id: test-rule-id
+          api_path: ./api/openapi.yaml
+          mocked: warning
+          
+      - name: Test Fail Scenario
+        uses: tyktechnologies/governance-action@latest
+        continue-on-error: true
+        with:
+          rule_id: test-rule-id
+          api_path: ./api/openapi.yaml
+          mocked: fail
+
+  real-governance:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Real Governance Check
+        uses: tyktechnologies/governance-action@latest
+        with:
+          governance_service: ${{ secrets.GOVERNANCE_SERVICE_URL }}
+          governance_auth: ${{ secrets.GOVERNANCE_SERVICE_TOKEN }}
+          rule_id: ${{ secrets.GOVERNANCE_RULE_ID }}
+          api_path: ./api/openapi.yaml
+```
+
+#### Conditional Workflow
+
+```yaml
+name: Smart Governance Check
+on: [push, pull_request]
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Governance Check
+        uses: tyktechnologies/governance-action@latest
+        with:
+          governance_service: ${{ github.event_name == 'push' && secrets.GOVERNANCE_SERVICE_URL || '' }}
+          governance_auth: ${{ github.event_name == 'push' && secrets.GOVERNANCE_SERVICE_TOKEN || '' }}
+          rule_id: ${{ secrets.GOVERNANCE_RULE_ID }}
+          api_path: ./api/openapi.yaml
+          mocked: ${{ github.event_name == 'pull_request' && 'warning' || '' }}
+```
 
 ### Advanced Workflows
 

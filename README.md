@@ -25,18 +25,25 @@ The Governance Action reads an OpenAPI Specification file, sends it to a governa
 
 ### Configuration
 
-The action uses the following environment variables:
+The action uses the following input parameters:
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `GOVERNANCE_API_URL` | Base URL of the governance service API | Yes* | - |
-| `GOVERNANCE_API_TOKEN` | Authentication token for the governance API | Yes* | - |
-| `OAS_FILE_PATH` | Path to the OpenAPI Specification file | Yes | - |
-| `RULE_ID` | ID of the governance rule to evaluate against | Yes | - |
-| `MOCKED` | Mock mode for testing ("success", "fail", "warning") | No | - |
-| `VERBOSE` | Enable verbose logging (true/false) | No | false |
+| Parameter | Description | Required | Default |
+|-----------|-------------|----------|---------|
+| `governance_service` | Base URL of the governance service API | Yes* | - |
+| `governance_auth` | Authentication token for the governance API | Yes* | - |
+| `rule_id` | ID of the governance rule to evaluate against | Yes | - |
+| `api_path` | Path to the OpenAPI Specification file | Yes | - |
+| `mocked` | Mock mode for testing ("success", "fail", "warning") | No | - |
 
-*Not required when using `MOCKED` mode for testing.
+*Not required when using `mocked` mode for testing.
+
+**Environment Variable Fallbacks:**
+The action also supports environment variables:
+- `GOVERNANCE_SERVICE` → `governance_service`
+- `GOVERNANCE_AUTH` → `governance_auth`
+- `RULE_ID` → `rule_id`
+- `API_PATH` → `api_path`
+- `MOCKED` → `mocked`
 
 ## Setup Guides
 
@@ -47,22 +54,22 @@ For detailed GitHub Actions integration instructions, see [GitHub Actions Integr
 **Quick Example:**
 ```yaml
 - name: Run Governance Check
-  uses: docker://ghcr.io/tyktechnologies/governance-action:latest
-  env:
-    GOVERNANCE_API_URL: ${{ secrets.GOVERNANCE_API_URL }}
-    GOVERNANCE_API_TOKEN: ${{ secrets.GOVERNANCE_API_TOKEN }}
-    OAS_FILE_PATH: ./api/openapi.yaml
-    RULE_ID: ${{ secrets.GOVERNANCE_RULE_ID }}
+  uses: tyktechnologies/governance-action@latest
+  with:
+    governance_service: ${{ secrets.GOVERNANCE_SERVICE_URL }}
+    governance_auth: ${{ secrets.GOVERNANCE_SERVICE_TOKEN }}
+    rule_id: ${{ secrets.GOVERNANCE_RULE_ID }}
+    api_path: ./api/openapi.yaml
 ```
 
 **Testing with Mock Mode:**
 ```yaml
 - name: Test Governance Check (Mock Mode)
-  uses: docker://ghcr.io/tyktechnologies/governance-action:latest
-  env:
-    OAS_FILE_PATH: ./api/openapi.yaml
-    RULE_ID: test-rule-id
-    MOCKED: success  # Options: success, fail, warning
+  uses: tyktechnologies/governance-action@latest
+  with:
+    rule_id: test-rule-id
+    api_path: ./api/openapi.yaml
+    mocked: success  # Options: success, fail, warning
 ```
 
 ### GitLab CI
