@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
 )
 
 // GovernanceClient handles communication with the governance service
@@ -71,6 +72,27 @@ type RuleReference struct {
 func (c *GovernanceClient) AnalyzeOAS(ctx context.Context, oasContent, ruleID, filename string) ([]LintResult, error) {
 	c.logger.Info("Starting OAS analysis", zap.String("rule_id", ruleID), zap.String("filename", filename))
 
+	// Convert YAML content to JSON if needed
+	var jsonContent json.RawMessage
+	var err error
+
+	// Try to parse as YAML first, then convert to JSON
+	var yamlData interface{}
+	if err := yaml.Unmarshal([]byte(oasContent), &yamlData); err == nil {
+		// Successfully parsed as YAML, convert to JSON
+		jsonContent, err = json.Marshal(yamlData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert YAML to JSON: %w", err)
+		}
+	} else {
+		// Try to parse as JSON directly
+		if json.Valid([]byte(oasContent)) {
+			jsonContent = json.RawMessage(oasContent)
+		} else {
+			return nil, fmt.Errorf("content is neither valid YAML nor JSON: %w", err)
+		}
+	}
+
 	// Create the analysis request in the correct format expected by the governance service
 	request := map[string]interface{}{
 		"ruleSetSelector": map[string]interface{}{
@@ -78,7 +100,7 @@ func (c *GovernanceClient) AnalyzeOAS(ctx context.Context, oasContent, ruleID, f
 		},
 		"apiContent": map[string]interface{}{
 			"name":    filename,
-			"content": oasContent,
+			"content": jsonContent,
 		},
 	}
 
