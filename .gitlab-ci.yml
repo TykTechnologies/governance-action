@@ -1,0 +1,44 @@
+# GitLab CI configuration for Governance Action
+# This template shows how to integrate the governance action into your GitLab CI pipeline
+
+stages:
+  - governance
+
+governance-check:
+  stage: governance
+  image: ghcr.io/tyktechnologies/governance-action:latest
+  variables:
+    # Governance service configuration
+    GOVERNANCE_API_URL: $GOVERNANCE_API_URL
+    GOVERNANCE_API_TOKEN: $GOVERNANCE_API_TOKEN
+    OAS_FILE_PATH: ./api/openapi.yaml  # Adjust path to your OAS file
+    RULE_ID: $GOVERNANCE_RULE_ID
+    VERBOSE: "true"
+    
+    # GitLab output file (optional)
+    GITLAB_OUTPUT_FILE: governance_output.env
+  script:
+    - /app/governance-action
+  artifacts:
+    reports:
+      # If you want to parse the output for GitLab's test reports
+      junit: governance-report.xml
+    paths:
+      - governance_output.env  # Export variables for other jobs
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  allow_failure: false  # Set to true if you want the pipeline to continue even if governance fails
+
+# Example of using governance outputs in subsequent jobs
+# downstream-job:
+#   stage: deploy
+#   script:
+#     - source governance_output.env  # Load governance outputs
+#     - echo "Found $error_count errors and $warning_count warnings"
+#     - if [ "$error_count" -gt 0 ]; then echo "Cannot deploy due to governance errors"; exit 1; fi
+#   dependencies:
+#     - governance-check
+#   rules:
+#     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH 

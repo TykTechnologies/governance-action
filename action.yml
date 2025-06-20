@@ -1,0 +1,40 @@
+name: 'Tyk Governance Action'
+description: 'Run governance checks on OpenAPI specs using Tyk Governance Service.'
+author: 'Tyk Technologies'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args: []
+branding:
+  icon: 'shield'
+  color: 'blue'
+inputs:
+  governance_service:
+    description: 'Base URL of the governance service.'
+    required: true
+  governance_auth:
+    description: 'API token for the governance service.'
+    required: true
+  rule_id:
+    description: 'ID of the rule to evaluate.'
+    required: true
+  api_path:
+    description: 'Path to the OpenAPI (OAS) file to analyze.'
+    required: true
+outputs:
+  error_count:
+    description: 'Number of errors found.'
+  warning_count:
+    description: 'Number of warnings found.'
+  total_issues:
+    description: 'Total number of issues found.'
+
+# Example usage
+#
+# - name: Run Governance check
+#   uses: tyktechnologies/governance-action@latest
+#   with:
+#     governance_service: ${{ secrets.GOVERNANCE_SERVICE_URL }}
+#     governance_auth: ${{ secrets.GOVERNANCE_SERVICE_TOKEN }}
+#     rule_id: ${{ env.RULE_ID }}
+#     api_path: ./api/openapi.yaml 

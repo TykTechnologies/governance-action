@@ -1,0 +1,20 @@
+openapi: 3.1.0
+info:
+  title: Test API
+  version: 1.0.0
+  description: A test API for governance action testing
+paths:
+  /test:
+    get:
+      summary: Test endpoint
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Hello World" 
