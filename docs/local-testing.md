@@ -88,8 +88,6 @@ cd test-data
 go run mock-server.go
 ```
 
-The mock server will start on `http://localhost:8080` and provide simulated governance responses.
-
 #### Step 4: Test the Action
 
 ```bash
@@ -121,27 +119,22 @@ You should see output similar to:
 2024-01-15T10:30:00.000Z    INFO    Governance API response received
 2024-01-15T10:30:00.000Z    WARN    Governance issues found: 2
 
-=== GOVERNANCE ISSUES SUMMARY ===
-Found 2 governance issues:
+================ Governance Analysis Report ================
+❌ [ERROR] [paths./test.get.responses.200.content.application/json.schema.properties.message] owasp-string-restricted
+    schema of type `string` must specify `format`, `const`, `enum` or `pattern`
+    Location: line 1, char 183 - line 1, char 189
+    --- OAS snippet ---
+       1 | openapi: 3.1.0
+    -------------------
+❌ [ERROR] [paths./test.get.responses.200] owasp-rate-limit
+    response with code `200`, must contain one of the defined headers: `{X-RateLimit-Limit} {X-Rate-Limit-Limit} {RateLimit-Limit, RateLimit-Reset} {RateLimit} `
+    Location: line 1, char 86 - line 1, char 91
+    --- OAS snippet ---
+       1 | openapi: 3.1.0
+    -------------------
+===========================================================
 
-1. [ERROR] Missing API Version Header
-   Rule: api-version-header
-   Path: /users
-   Message: API endpoints should include version header
-   Location: paths./users.get
-
-2. [WARNING] Missing Rate Limiting
-   Rule: rate-limiting
-   Path: /users/{id}
-   Message: Consider adding rate limiting to this endpoint
-   Location: paths./users/{id}.get
-
-=== RECOMMENDATIONS ===
-- Add API version header to all endpoints
-- Implement rate limiting for better API protection
-- Review security headers configuration
-
-Action failed: governance issues detected
+Action failed: governance analysis failed with 2 errors and 0 warnings
 ```
 
 ### Method 2: Using act (GitHub Actions Local Testing)

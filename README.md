@@ -150,27 +150,52 @@ The action provides detailed governance analysis reports and sets output variabl
 ### Sample Output
 
 ```
-=== GOVERNANCE ISSUES SUMMARY ===
-Found 2 governance issues:
+================ Governance Analysis Report ================
+❌ [ERROR] [paths./test.get.responses.200.content.application/json.schema.properties.message] owasp-string-restricted
+    schema of type `string` must specify `format`, `const`, `enum` or `pattern`
+    Location: line 1, char 183 - line 1, char 189
+    --- OAS snippet ---
+       1 | openapi: 3.1.0
+    -------------------
+❌ [ERROR] [paths./test.get.responses.200.content.application/json.schema.properties.message] owasp-string-limit
+    schema of type `string` must specify `maxLength`, `const` or `enum`
+    Location: line 1, char 183 - line 1, char 189
+    --- OAS snippet ---
+       1 | openapi: 3.1.0
+    -------------------
+⚠️ [WARNING] [paths./test.get.responses] owasp-define-error-responses-500
+    missing response code `500` for `GET`
+    Location: line 1, char 73 - line 1, char 84
+    --- OAS snippet ---
+       1 | openapi: 3.1.0
+    -------------------
+⚠️ [WARNING] [paths./test.get.responses] owasp-define-error-responses-401
+    missing response code `401` for `GET`
+    Location: line 1, char 73 - line 1, char 84
+    --- OAS snippet ---
+       1 | openapi: 3.1.0
+    -------------------
+❌ [ERROR] [paths./test.get.responses.200] owasp-rate-limit
+    response with code `200`, must contain one of the defined headers: `{X-RateLimit-Limit} {X-Rate-Limit-Limit} {RateLimit-Limit, RateLimit-Reset} {RateLimit} `
+    Location: line 1, char 86 - line 1, char 91
+    --- OAS snippet ---
+       1 | openapi: 3.1.0
+    -------------------
+⚠️ [WARNING] [paths./test.get.responses] owasp-define-error-validation
+    missing one of `400`, `422`, `4XX` response codes
+    Location: line 1, char 73 - line 1, char 84
+    --- OAS snippet ---
+       1 | openapi: 3.1.0
+    -------------------
+⚠️ [WARNING] [paths./test.get.responses] owasp-define-error-responses-429
+    missing response code `429` for `GET`
+    Location: line 1, char 73 - line 1, char 84
+    --- OAS snippet ---
+       1 | openapi: 3.1.0
+    -------------------
+===========================================================
 
-1. [ERROR] Missing API Version Header
-   Rule: api-version-header
-   Path: /users
-   Message: API endpoints should include version header
-   Location: paths./users.get
-
-2. [WARNING] Missing Rate Limiting
-   Rule: rate-limiting
-   Path: /users/{id}
-   Message: Consider adding rate limiting to this endpoint
-   Location: paths./users/{id}.get
-
-=== RECOMMENDATIONS ===
-- Add API version header to all endpoints
-- Implement rate limiting for better API protection
-- Review security headers configuration
-
-Action failed: governance issues detected
+Action failed: governance analysis failed with 3 errors and 4 warnings
 ```
 
 ### Output Variables
